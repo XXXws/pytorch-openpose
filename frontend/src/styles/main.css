@@ -1,0 +1,422 @@
+/**
+ * PyTorch OpenPose Vue前端主样式文件
+ * 提供响应式布局、组件样式和交互效果
+ */
+
+/* 全局样式重置 */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', '微软雅黑', Arial, sans-serif;
+  background-color: #f5f7fa;
+  color: #303133;
+  line-height: 1.6;
+}
+
+/* 主容器样式 */
+.app-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+/* 响应式容器 */
+.responsive-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* 卡片样式增强 */
+.el-card {
+  border-radius: 8px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.el-card:hover {
+  box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+}
+
+/* 图像检测模块样式 */
+.image-demo {
+  padding: 20px 0;
+}
+
+.control-panel, .result-panel {
+  min-height: 600px;
+}
+
+/* 上传区域样式 */
+.upload-section {
+  margin-bottom: 20px;
+}
+
+.image-uploader .el-upload {
+  border: 2px dashed #d9d9d9;
+  border-radius: 8px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.image-uploader .el-upload:hover {
+  border-color: #409eff;
+  background-color: #f0f9ff;
+}
+
+.image-uploader .el-upload-dragger {
+  background-color: transparent;
+  border: none;
+  width: 100%;
+  height: 180px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.image-uploader .el-icon--upload {
+  font-size: 48px;
+  color: #c0c4cc;
+  margin-bottom: 16px;
+  transition: color 0.3s ease;
+}
+
+.image-uploader:hover .el-icon--upload {
+  color: #409eff;
+}
+
+/* 参数设置区域 */
+.params-section {
+  margin-bottom: 20px;
+}
+
+.params-section h4 {
+  margin-bottom: 15px;
+  color: #303133;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.params-section .el-form-item {
+  margin-bottom: 12px;
+}
+
+/* 操作按钮区域 */
+.action-section {
+  margin-top: 20px;
+}
+
+.action-section .el-button {
+  height: 48px;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: 6px;
+  transition: all 0.3s ease;
+}
+
+.action-section .el-button--primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+}
+
+.action-section .el-button--primary:hover {
+  background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+/* 结果展示区域 */
+.result-content {
+  max-height: 500px;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+.result-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.result-content::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.result-content::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.result-content::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* 图像对比显示 */
+.image-comparison {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.image-item {
+  position: relative;
+}
+
+.image-item h4 {
+  text-align: center;
+  margin-bottom: 10px;
+  color: #606266;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.image-item img {
+  width: 100%;
+  max-height: 300px;
+  object-fit: contain;
+  border: 1px solid #dcdfe6;
+  border-radius: 6px;
+  transition: all 0.3s ease;
+}
+
+.image-item img:hover {
+  border-color: #409eff;
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.2);
+}
+
+.placeholder {
+  height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f5f7fa;
+  border: 2px dashed #dcdfe6;
+  border-radius: 6px;
+  color: #909399;
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+.placeholder:hover {
+  border-color: #c0c4cc;
+  background-color: #fafbfc;
+}
+
+/* 检测统计样式 */
+.detection-stats {
+  margin-top: 20px;
+}
+
+.detection-stats .el-descriptions {
+  background: white;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.detection-stats .el-tag {
+  font-weight: 600;
+}
+
+/* 关键点信息样式 */
+.keypoints-info {
+  margin-top: 20px;
+}
+
+.keypoints-info h4 {
+  margin-bottom: 15px;
+  color: #303133;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.info-card {
+  height: 100%;
+}
+
+.info-card .el-card__header {
+  background-color: #f8f9fa;
+  font-weight: 600;
+  color: #495057;
+}
+
+.keypoint-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  padding: 4px 0;
+}
+
+.keypoint-item span {
+  font-size: 13px;
+  color: #606266;
+}
+
+/* 加载动画 */
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  z-index: 1000;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #409eff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* 淡入动画 */
+.fade-in {
+  animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* 响应式设计 */
+@media (max-width: 1200px) {
+  .responsive-container {
+    max-width: 960px;
+  }
+}
+
+@media (max-width: 992px) {
+  .responsive-container {
+    max-width: 720px;
+  }
+  
+  .image-comparison {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+  
+  .control-panel, .result-panel {
+    min-height: auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .responsive-container {
+    padding: 0 15px;
+  }
+  
+  .image-demo {
+    padding: 15px 0;
+  }
+  
+  .image-uploader .el-upload-dragger {
+    height: 150px;
+  }
+  
+  .image-uploader .el-icon--upload {
+    font-size: 36px;
+  }
+  
+  .result-content {
+    max-height: 400px;
+  }
+  
+  .image-item img {
+    max-height: 250px;
+  }
+  
+  .keypoints-info .el-col {
+    margin-bottom: 15px;
+  }
+}
+
+@media (max-width: 576px) {
+  .responsive-container {
+    padding: 0 10px;
+  }
+  
+  .image-demo {
+    padding: 10px 0;
+  }
+  
+  .detection-stats .el-descriptions {
+    font-size: 12px;
+  }
+  
+  .keypoint-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+}
+
+/* 主题色彩变量 */
+:root {
+  --primary-color: #667eea;
+  --primary-light: #8fa4f3;
+  --primary-dark: #4c63d2;
+  --success-color: #67c23a;
+  --warning-color: #e6a23c;
+  --danger-color: #f56c6c;
+  --info-color: #909399;
+  --text-primary: #303133;
+  --text-regular: #606266;
+  --text-secondary: #909399;
+  --border-light: #ebeef5;
+  --border-base: #dcdfe6;
+  --background-base: #f5f7fa;
+}
+
+/* 工具类 */
+.text-center { text-align: center; }
+.text-left { text-align: left; }
+.text-right { text-align: right; }
+
+.mb-10 { margin-bottom: 10px; }
+.mb-15 { margin-bottom: 15px; }
+.mb-20 { margin-bottom: 20px; }
+
+.mt-10 { margin-top: 10px; }
+.mt-15 { margin-top: 15px; }
+.mt-20 { margin-top: 20px; }
+
+.p-10 { padding: 10px; }
+.p-15 { padding: 15px; }
+.p-20 { padding: 20px; }
+
+.full-width { width: 100%; }
+.full-height { height: 100%; }
+
+/* 状态指示器 */
+.status-indicator {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+
+.status-indicator.success { background-color: var(--success-color); }
+.status-indicator.warning { background-color: var(--warning-color); }
+.status-indicator.danger { background-color: var(--danger-color); }
+.status-indicator.info { background-color: var(--info-color); }

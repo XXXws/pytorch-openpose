@@ -1,0 +1,41 @@
+# 基础依赖
+numpy>=1.19.0
+matplotlib>=3.3.0
+opencv-python>=4.5.0
+scipy>=1.6.0
+scikit-image>=0.17.0
+tqdm>=4.60.0
+
+# Web服务依赖
+fastapi>=0.100.0
+uvicorn>=0.20.0
+python-multipart>=0.0.6
+pydantic>=2.0.0
+websockets>=12.0
+starlette>=0.27.0
+
+# 性能监控依赖
+psutil>=5.9.0
+memory-profiler>=0.60.0
+py-cpuinfo>=9.0.0
+GPUtil>=1.4.0
+
+# FFmpeg支持
+ffmpeg-python>=0.2.0
+
+# PyTorch依赖（GPU版本）
+# 请根据您的CUDA版本安装对应的PyTorch
+# 访问 https://pytorch.org/ 获取安装命令
+
+# CUDA 11.8 (推荐)
+# pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+
+# CUDA 12.1
+# pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+
+# CPU版本（如果没有GPU）
+# pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+
+# 通用PyTorch（让pip自动选择版本）
+torch>=1.9.0
+torchvision>=0.10.0
