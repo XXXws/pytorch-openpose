@@ -62,13 +62,19 @@ mkdir -p model
 # 下载链接请参考项目文档或联系维护者
 ```
 
-4. **安装前端依赖**
+4. **可选：自定义模型目录**
+```bash
+# 默认从 `model/` 读取模型，可通过环境变量指定其他目录
+export MODEL_DIR=/path/to/your/models
+```
+
+5. **安装前端依赖**
 ```bash
 cd frontend
 npm install
 ```
 
-5. **Windows用户快速安装**
+6. **Windows用户快速安装**
 ```bash
 # 运行自动安装脚本
 install_dependencies.bat

@@ -12,6 +12,7 @@ import time
 import io
 import base64
 import copy
+import os
 from typing import Dict, List, Any, Optional
 from PIL import Image
 
@@ -19,6 +20,7 @@ from PIL import Image
 from src.body import Body
 from src.hand import Hand
 from src import util
+from app.config import MODEL_DIR
 
 class OpenPoseDetectionService:
     """OpenPose检测服务类"""
@@ -33,11 +35,8 @@ class OpenPoseDetectionService:
         
         # 加载模型
         try:
-            # 确保使用绝对路径
-            import os
-            current_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-            body_model_path = os.path.join(current_dir, 'model', 'body_pose_model.pth')
-            hand_model_path = os.path.join(current_dir, 'model', 'hand_pose_model.pth')
+            body_model_path = os.path.join(MODEL_DIR, 'body_pose_model.pth')
+            hand_model_path = os.path.join(MODEL_DIR, 'hand_pose_model.pth')
             
             print(f"Loading body model from: {body_model_path}")
             if not os.path.exists(body_model_path):

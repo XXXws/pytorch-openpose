@@ -19,6 +19,7 @@ from typing import Dict, Any, Optional
 from src.body import Body
 from src.hand import Hand
 from src import util
+from app.config import MODEL_DIR
 
 # 导入FFmpeg工具
 from app.core.ffmpeg_utils import (
@@ -95,8 +96,10 @@ class VideoProcessingService:
             print("FFmpeg和FFProbe可用，将使用FFmpeg处理")
         
         # 初始化GPU优化的检测模型
-        self.body_estimation = Body('model/body_pose_model.pth')
-        self.hand_estimation = Hand('model/hand_pose_model.pth')
+        body_model_path = os.path.join(MODEL_DIR, 'body_pose_model.pth')
+        hand_model_path = os.path.join(MODEL_DIR, 'hand_pose_model.pth')
+        self.body_estimation = Body(body_model_path)
+        self.hand_estimation = Hand(hand_model_path)
         
         # 任务存储
         self.tasks: Dict[str, VideoTask] = {}
