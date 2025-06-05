@@ -24,8 +24,9 @@ if sys.platform == "win32":
         os.environ['PYTHONIOENCODING'] = 'utf-8'
 
 # 确保项目根目录在Python路径中
-if os.path.dirname(os.path.abspath(__file__)) not in sys.path:
-    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) # 获取项目根目录
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

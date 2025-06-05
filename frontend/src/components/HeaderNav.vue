@@ -4,7 +4,7 @@
       <!-- 项目标题 -->
       <div class="title">
         <h1>PyTorch OpenPose Web系统</h1>
-        <span class="subtitle">人体姿态检测 - 答辩演示</span>
+        <span class="subtitle">人体姿态检测</span>
       </div>
       
       <!-- 功能标签导航 -->

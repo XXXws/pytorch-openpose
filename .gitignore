@@ -9,3 +9,25 @@ videos/
 node_modules/
 dist/
 .env
+
+# 媒体文件
+*.mp4
+*.avi
+*.mov
+*.wmv
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.bmp
+
+# 上传和结果目录
+uploads/
+results/
+app/uploads/
+app/results/
+
+# 临时文件
+*.tmp
+*.temp
+*.log
