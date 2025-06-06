@@ -7,15 +7,19 @@ import matplotlib.pyplot as plt
 import matplotlib
 import torch
 from torchvision import transforms
+import logging
 
 from src import util
 from src.model import bodypose_model
+
+logger = logging.getLogger(__name__)
+
 
 class Body(object):
     def __init__(self, model_path):
         # 检测GPU是否可用并设置设备
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        print(f"Using device for body pose detection: {self.device}")
+        logger.info(f"Using device for body pose detection: {self.device}")
         
         self.model = bodypose_model()
         self.model = self.model.to(self.device)
