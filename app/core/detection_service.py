@@ -12,6 +12,7 @@ import time
 import io
 import base64
 import copy
+import logging
 from typing import Dict, List, Any, Optional
 from PIL import Image
 
@@ -20,16 +21,18 @@ from src.body import Body
 from src.hand import Hand
 from src import util
 
+logger = logging.getLogger(__name__)
+
 class OpenPoseDetectionService:
     """OpenPose检测服务类"""
     
     def __init__(self):
         """初始化检测服务"""
-        print("Initializing OpenPose detection service...")
+        logger.info("Initializing OpenPose detection service...")
         
         # 设备检测
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        print(f"Using device: {self.device}")
+        logger.info(f"Using device: {self.device}")
         
         # 加载模型
         try:
@@ -39,33 +42,33 @@ class OpenPoseDetectionService:
             body_model_path = os.path.join(current_dir, 'model', 'body_pose_model.pth')
             hand_model_path = os.path.join(current_dir, 'model', 'hand_pose_model.pth')
             
-            print(f"Loading body model from: {body_model_path}")
+            logger.info(f"Loading body model from: {body_model_path}")
             if not os.path.exists(body_model_path):
                 raise FileNotFoundError(f"Body model file not found: {body_model_path}")
             
             self.body_estimation = Body(body_model_path)
-            print("GPU optimized Body class imported successfully")
+            logger.info("GPU optimized Body class imported successfully")
             
-            print(f"Loading hand model from: {hand_model_path}")
+            logger.info(f"Loading hand model from: {hand_model_path}")
             if not os.path.exists(hand_model_path):
                 raise FileNotFoundError(f"Hand model file not found: {hand_model_path}")
             
             self.hand_estimation = Hand(hand_model_path)
-            print("GPU optimized Hand class imported successfully")
+            logger.info("GPU optimized Hand class imported successfully")
             
             # 模型预热
             self._warmup_models()
             
         except Exception as e:
-            print(f"Model loading failed: {e}")
+            logger.exception(f"Model loading failed: {e}")
             raise e
         
-        print("OpenPose detection service initialization completed")
+        logger.info("OpenPose detection service initialization completed")
     
     def _warmup_models(self):
         """预热模型，避免首次推理延迟"""
         try:
-            print("Starting model warmup...")
+            logger.info("Starting model warmup...")
             
             # 创建测试图像
             test_image = np.random.randint(0, 255, (480, 640, 3), dtype=np.uint8)
@@ -82,10 +85,10 @@ class OpenPoseDetectionService:
                         if hand_roi.size > 0:
                             self.hand_estimation(hand_roi)
             
-            print("Model warmup successful")
+            logger.info("Model warmup successful")
             
         except Exception as e:
-            print(f"Model warmup failed: {e}")
+            logger.error(f"Model warmup failed: {e}")
     
     def detect_pose(
         self, 
@@ -151,7 +154,9 @@ class OpenPoseDetectionService:
                 if draw_result and canvas is not None:
                     canvas = util.draw_bodypose(canvas, candidate, subset)
                 
-                print(f"Body detection completed: {num_people} people, {num_keypoints} keypoints, time: {body_time:.3f}s")
+                logger.info(
+                    f"Body detection completed: {num_people} people, {num_keypoints} keypoints, time: {body_time:.3f}s"
+                )
             
             # 手部姿态检测
             if include_hands and candidate is not None and subset is not None:
@@ -180,7 +185,7 @@ class OpenPoseDetectionService:
                         })
                         
                     except Exception as e:
-                        print(f"Hand detection error: {e}")
+                        logger.error(f"Hand detection error: {e}")
                         continue
                 
                 hand_time = time.time() - hand_start
@@ -198,7 +203,9 @@ class OpenPoseDetectionService:
                     peaks_for_draw = [np.array(hand["peaks"]) for hand in all_hand_peaks]
                     canvas = util.draw_handpose(canvas, peaks_for_draw)
                 
-                print(f"Hand detection completed: {len(all_hand_peaks)} hands, time: {hand_time:.3f}s")
+                logger.info(
+                    f"Hand detection completed: {len(all_hand_peaks)} hands, time: {hand_time:.3f}s"
+                )
             
             # 处理结果图像（可选，用于备用显示）
             if draw_result and canvas is not None:
@@ -217,12 +224,12 @@ class OpenPoseDetectionService:
             total_time = time.time() - start_time
             result["processing_time"] = round(total_time, 3)
             
-            print(f"Total detection time: {total_time:.3f}s")
+            logger.info(f"Total detection time: {total_time:.3f}s")
             
             return result
             
         except Exception as e:
-            print(f"Error occurred during detection: {e}")
+            logger.exception(f"Error occurred during detection: {e}")
             return {
                 "success": False,
                 "error": str(e),
@@ -243,7 +250,7 @@ class OpenPoseDetectionService:
             return f"data:image/jpeg;base64,{img_str}"
             
         except Exception as e:
-            print(f"Image Base64 encoding failed: {e}")
+            logger.error(f"Image Base64 encoding failed: {e}")
             return ""
     
     def _base64_to_image(self, base64_str: str) -> Optional[np.ndarray]:
@@ -271,7 +278,7 @@ class OpenPoseDetectionService:
             return image_bgr
             
         except Exception as e:
-            print(f"Base64 image decoding failed: {e}")
+            logger.error(f"Base64 image decoding failed: {e}")
             return None
     
     def get_device_info(self) -> Dict[str, Any]:

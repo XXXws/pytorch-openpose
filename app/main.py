@@ -10,10 +10,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
+import logging
 import uvicorn
 import os
 import sys
 import traceback
+
+from app.logger import setup_logging
+from app.config import settings
+
+setup_logging()
+logger = logging.getLogger(__name__)
 
 # 设置UTF-8编码，避免Windows下的GBK编码问题
 if sys.platform == "win32":
@@ -32,23 +39,23 @@ if project_root not in sys.path:
 async def lifespan(app: FastAPI):
     """应用生命周期管理"""
     # 启动时执行
-    print("FastAPI应用启动中...")
+    logger.info("FastAPI应用启动中...")
     
     # 创建必要的目录
-    os.makedirs("uploads", exist_ok=True)
-    os.makedirs("results", exist_ok=True)
-    os.makedirs("images", exist_ok=True)
-    print("目录创建完成")
+    os.makedirs(settings.upload_dir, exist_ok=True)
+    os.makedirs(settings.result_dir, exist_ok=True)
+    os.makedirs(settings.image_dir, exist_ok=True)
+    logger.info("目录创建完成")
     
     # 启动性能监控
     try:
         from app.core.performance_monitor import start_performance_monitoring
         start_performance_monitoring()
-        print("性能监控启动成功")
+        logger.info("性能监控启动成功")
     except Exception as e:
-        print(f"性能监控启动失败: {e}")
+        logger.error(f"性能监控启动失败: {e}")
     
-    print("FastAPI应用启动完成")
+    logger.info("FastAPI应用启动完成")
     
     yield
     
@@ -56,11 +63,11 @@ async def lifespan(app: FastAPI):
     try:
         from app.core.performance_monitor import stop_performance_monitoring
         stop_performance_monitoring()
-        print("性能监控已停止")
+        logger.info("性能监控已停止")
     except Exception as e:
-        print(f"性能监控停止失败: {e}")
+        logger.error(f"性能监控停止失败: {e}")
     
-    print("FastAPI应用关闭")
+    logger.info("FastAPI应用关闭")
 
 # 创建FastAPI应用
 app = FastAPI(
@@ -80,13 +87,13 @@ app.add_middleware(
 )
 
 # 添加静态文件服务
-if not os.path.exists("uploads"):
-    os.makedirs("uploads")
-if not os.path.exists("results"):
-    os.makedirs("results")
+if not os.path.exists(settings.upload_dir):
+    os.makedirs(settings.upload_dir)
+if not os.path.exists(settings.result_dir):
+    os.makedirs(settings.result_dir)
 
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
-app.mount("/results", StaticFiles(directory="results"), name="results")
+app.mount("/uploads", StaticFiles(directory=settings.upload_dir), name="uploads")
+app.mount("/results", StaticFiles(directory=settings.result_dir), name="results")
 
 # 导入API路由
 try:
@@ -99,11 +106,10 @@ try:
     app.include_router(realtime.router, prefix="/api", tags=["实时检测"])
     app.include_router(performance.router, prefix="/api", tags=["性能监控"])
     
-    print("所有API路由加载成功")
+    logger.info("所有API路由加载成功")
     
 except Exception as e:
-    print(f"API路由加载失败: {e}")
-    traceback.print_exc()
+    logger.exception(f"API路由加载失败: {e}")
 
 # 根路径
 @app.get("/")
@@ -129,8 +135,7 @@ async def root():
 @app.exception_handler(Exception)
 async def global_exception_handler(request, exc):
     """全局异常处理器"""
-    print(f"全局异常: {str(exc)}")
-    traceback.print_exc()
+    logger.exception(f"全局异常: {str(exc)}")
     
     return JSONResponse(
         status_code=500,
@@ -142,9 +147,9 @@ async def global_exception_handler(request, exc):
     )
 
 if __name__ == "__main__":
-    print("启动PyTorch OpenPose Web服务")
-    print("访问地址: http://localhost:8001")
-    print("API文档: http://localhost:8001/docs")
+    logger.info("启动PyTorch OpenPose Web服务")
+    logger.info("访问地址: http://localhost:8001")
+    logger.info("API文档: http://localhost:8001/docs")
     
     uvicorn.run(
         "app.main:app", 

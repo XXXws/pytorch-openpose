@@ -8,6 +8,7 @@
 import os
 import tempfile
 import time
+import logging
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 
@@ -15,7 +16,13 @@ from fastapi import APIRouter, File, UploadFile, Form, HTTPException, Background
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 
-from app.core.video_service import get_video_service, VideoTaskStatus
+from app.core.video_task_manager import (
+    get_video_task_manager,
+    VideoTaskStatus,
+)
+from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/video", tags=["视频处理"])
 
@@ -56,13 +63,13 @@ async def upload_video(
     """
     
     try:
-        print(f"收到视频上传请求: {file.filename}")
-        print(f"文件类型: {file.content_type}")
-        print(f"检测选项: body={include_body}, hands={include_hands}")
+        logger.info(f"收到视频上传请求: {file.filename}")
+        logger.info(f"文件类型: {file.content_type}")
+        logger.info(f"检测选项: body={include_body}, hands={include_hands}")
         
         # 验证文件类型
         if not file.content_type or not file.content_type.startswith('video/'):
-            print(f"文件类型验证失败: {file.content_type}")
+            logger.error(f"文件类型验证失败: {file.content_type}")
             raise HTTPException(status_code=400, detail="请上传视频文件")
         
         # 验证文件大小（限制100MB）
@@ -71,7 +78,7 @@ async def upload_video(
         file_size = len(temp_content)
         await file.seek(0)  # 重置文件指针
         
-        print(f"文件大小: {file_size / 1024 / 1024:.2f}MB")
+        logger.info(f"文件大小: {file_size / 1024 / 1024:.2f}MB")
         
         if file_size > 100 * 1024 * 1024:  # 100MB
             raise HTTPException(status_code=400, detail="文件大小不能超过100MB")
@@ -80,9 +87,9 @@ async def upload_video(
             raise HTTPException(status_code=400, detail="文件为空")
         
         # 创建临时文件存储上传的视频
-        upload_dir = Path("uploads")
+        upload_dir = Path(settings.upload_dir)
         upload_dir.mkdir(exist_ok=True)
-        print(f"上传目录已创建: {upload_dir}")
+        logger.info(f"上传目录已创建: {upload_dir}")
         
         # 生成唯一文件名
         timestamp = int(time.time())
@@ -92,34 +99,34 @@ async def upload_video(
         
         temp_filename = f"video_{timestamp}_{hash(file.filename) % 10000}{file_suffix}"
         temp_file_path = upload_dir / temp_filename
-        print(f"临时文件路径: {temp_file_path}")
+        logger.info(f"临时文件路径: {temp_file_path}")
         
         # 保存上传文件
         with open(temp_file_path, "wb") as temp_file:
             await file.seek(0)
             content = await file.read()
             temp_file.write(content)
-        print(f"文件保存成功: {temp_file_path}")
+        logger.info(f"文件保存成功: {temp_file_path}")
         
-        # 获取视频服务并创建任务
-        print("正在获取视频服务...")
+        # 获取任务管理器并创建任务
+        logger.info("正在获取视频任务管理器...")
         try:
-            video_service = get_video_service()
-            print("视频服务获取成功")
+            task_manager = get_video_task_manager()
+            logger.info("任务管理器获取成功")
         except Exception as e:
-            print(f"视频服务获取失败: {e}")
-            raise HTTPException(status_code=500, detail=f"视频服务初始化失败: {str(e)}")
-        
-        print("正在创建视频处理任务...")
+            logger.error(f"任务管理器获取失败: {e}")
+            raise HTTPException(status_code=500, detail=f"任务管理器初始化失败: {str(e)}")
+
+        logger.info("正在创建视频处理任务...")
         try:
-            task_id = video_service.create_video_task(
+            task_id = task_manager.create_video_task(
                 str(temp_file_path),
                 include_body=include_body,
                 include_hands=include_hands
             )
-            print(f"任务创建成功: {task_id}")
+            logger.info(f"任务创建成功: {task_id}")
         except Exception as e:
-            print(f"任务创建失败: {e}")
+            logger.error(f"任务创建失败: {e}")
             # 清理临时文件
             if temp_file_path.exists():
                 temp_file_path.unlink()
@@ -145,15 +152,13 @@ async def upload_video(
         raise
     except Exception as e:
         # 捕获所有其他异常
-        print(f"视频上传异常: {str(e)}")
-        import traceback
-        traceback.print_exc()
+        logger.exception(f"视频上传异常: {str(e)}")
         
         # 清理临时文件
         if 'temp_file_path' in locals() and temp_file_path.exists():
             try:
                 temp_file_path.unlink()
-            except:
+            except Exception:
                 pass
         
         raise HTTPException(status_code=500, detail=f"视频上传失败: {str(e)}")
@@ -168,8 +173,8 @@ async def get_task_status(task_id: str) -> TaskStatusResponse:
     返回任务的详细状态信息，包括处理进度
     """
     
-    video_service = get_video_service()
-    task_status = video_service.get_task_status(task_id)
+    task_manager = get_video_task_manager()
+    task_status = task_manager.get_task_status(task_id)
     
     if task_status is None:
         raise HTTPException(status_code=404, detail="任务不存在")
@@ -184,8 +189,8 @@ async def list_tasks() -> Dict[str, Any]:
     返回任务列表和状态统计
     """
     
-    video_service = get_video_service()
-    return video_service.list_tasks()
+    task_manager = get_video_task_manager()
+    return task_manager.list_tasks()
 
 @router.get("/task/{task_id}/result", summary="下载处理结果")
 async def download_result(task_id: str):
@@ -197,8 +202,8 @@ async def download_result(task_id: str):
     返回处理后的视频文件
     """
     
-    video_service = get_video_service()
-    task_status = video_service.get_task_status(task_id)
+    task_manager = get_video_task_manager()
+    task_status = task_manager.get_task_status(task_id)
     
     if task_status is None:
         raise HTTPException(status_code=404, detail="任务不存在")
@@ -240,8 +245,8 @@ async def play_result(task_id: str, request: Request = None):
     返回可在浏览器中直接播放的视频文件
     """
     
-    video_service = get_video_service()
-    task_status = video_service.get_task_status(task_id)
+    task_manager = get_video_task_manager()
+    task_status = task_manager.get_task_status(task_id)
     
     if task_status is None:
         raise HTTPException(status_code=404, detail="任务不存在")
@@ -319,8 +324,8 @@ async def get_task_info(task_id: str) -> Dict[str, Any]:
     - **task_id**: 任务ID
     """
     
-    video_service = get_video_service()
-    task_status = video_service.get_task_status(task_id)
+    task_manager = get_video_task_manager()
+    task_status = task_manager.get_task_status(task_id)
     
     if task_status is None:
         raise HTTPException(status_code=404, detail="任务不存在")
@@ -346,8 +351,8 @@ async def delete_task(task_id: str) -> Dict[str, Any]:
     注意：只能删除已完成或失败的任务
     """
     
-    video_service = get_video_service()
-    task_status = video_service.get_task_status(task_id)
+    task_manager = get_video_task_manager()
+    task_status = task_manager.get_task_status(task_id)
     
     if task_status is None:
         raise HTTPException(status_code=404, detail="任务不存在")
@@ -361,11 +366,12 @@ async def delete_task(task_id: str) -> Dict[str, Any]:
         try:
             os.remove(output_file)
         except Exception as e:
-            print(f"删除输出文件失败: {e}")
+            logger.error(f"删除输出文件失败: {e}")
     
     # 从任务列表中移除
-    if hasattr(video_service, 'tasks') and task_id in video_service.tasks:
-        del video_service.tasks[task_id]
+    task_manager = get_video_task_manager()
+    if hasattr(task_manager, 'tasks') and task_id in task_manager.tasks:
+        del task_manager.tasks[task_id]
     
     return {
         "success": True,
@@ -381,8 +387,8 @@ async def cleanup_tasks(max_age_hours: int = 24) -> Dict[str, Any]:
     - **max_age_hours**: 任务最大保留时间（小时），默认24小时
     """
     
-    video_service = get_video_service()
-    cleaned_count = video_service.cleanup_old_tasks(max_age_hours)
+    task_manager = get_video_task_manager()
+    cleaned_count = task_manager.cleanup_old_tasks(max_age_hours)
     
     return {
         "success": True,
@@ -397,8 +403,8 @@ async def get_processing_stats() -> Dict[str, Any]:
     获取视频处理服务的统计信息
     """
     
-    video_service = get_video_service()
-    all_tasks = video_service.list_tasks()
+    task_manager = get_video_task_manager()
+    all_tasks = task_manager.list_tasks()
     
     # 计算各种统计信息
     stats = {
@@ -444,8 +450,8 @@ async def pause_task(task_id: str) -> Dict[str, Any]:
     - **task_id**: 任务ID
     """
     
-    video_service = get_video_service()
-    task_status = video_service.get_task_status(task_id)
+    task_manager = get_video_task_manager()
+    task_status = task_manager.get_task_status(task_id)
     
     if task_status is None:
         raise HTTPException(status_code=404, detail="任务不存在")
@@ -457,8 +463,8 @@ async def pause_task(task_id: str) -> Dict[str, Any]:
         )
     
     # 设置暂停标志（简化实现）
-    if hasattr(video_service, 'tasks') and task_id in video_service.tasks:
-        task = video_service.tasks[task_id]
+    if hasattr(task_manager, 'tasks') and task_id in task_manager.tasks:
+        task = task_manager.tasks[task_id]
         task.status = "paused"  # 添加暂停状态
         
         return {
@@ -478,8 +484,8 @@ async def resume_task(task_id: str) -> Dict[str, Any]:
     - **task_id**: 任务ID
     """
     
-    video_service = get_video_service()
-    task_status = video_service.get_task_status(task_id)
+    task_manager = get_video_task_manager()
+    task_status = task_manager.get_task_status(task_id)
     
     if task_status is None:
         raise HTTPException(status_code=404, detail="任务不存在")
@@ -491,8 +497,8 @@ async def resume_task(task_id: str) -> Dict[str, Any]:
         )
     
     # 恢复处理（简化实现）
-    if hasattr(video_service, 'tasks') and task_id in video_service.tasks:
-        task = video_service.tasks[task_id]
+    if hasattr(task_manager, 'tasks') and task_id in task_manager.tasks:
+        task = task_manager.tasks[task_id]
         task.status = VideoTaskStatus.PROCESSING
         
         return {
@@ -512,8 +518,8 @@ async def get_task_preview(task_id: str) -> Dict[str, Any]:
     - **task_id**: 任务ID
     """
     
-    video_service = get_video_service()
-    task_status = video_service.get_task_status(task_id)
+    task_manager = get_video_task_manager()
+    task_status = task_manager.get_task_status(task_id)
     
     if task_status is None:
         raise HTTPException(status_code=404, detail="任务不存在")
@@ -552,8 +558,8 @@ async def get_task_log(task_id: str) -> Dict[str, Any]:
     - **task_id**: 任务ID
     """
     
-    video_service = get_video_service()
-    task_status = video_service.get_task_status(task_id)
+    task_manager = get_video_task_manager()
+    task_status = task_manager.get_task_status(task_id)
     
     if task_status is None:
         raise HTTPException(status_code=404, detail="任务不存在")
@@ -611,20 +617,20 @@ async def get_video_file(filename: str, request: Request = None):
         raise HTTPException(status_code=400, detail="无效的文件名")
     
     # 构建文件路径
-    file_path = os.path.join("results", filename)
-    
-    print(f"尝试访问视频文件: {filename}")
-    print(f"完整文件路径: {file_path}")
-    print(f"文件是否存在: {os.path.exists(file_path)}")
+    file_path = os.path.join(settings.result_dir, filename)
+
+    logger.info(f"尝试访问视频文件: {filename}")
+    logger.debug(f"完整文件路径: {file_path}")
+    logger.debug(f"文件是否存在: {os.path.exists(file_path)}")
     
     if not os.path.exists(file_path):
-        print(f"文件不存在错误: {file_path}")
+        logger.error(f"文件不存在错误: {file_path}")
         # 列出results目录中的所有文件用于调试
         try:
-            results_files = os.listdir("results")
-            print(f"results目录中的文件: {results_files}")
+            results_files = os.listdir(settings.result_dir)
+            logger.debug(f"results目录中的文件: {results_files}")
         except Exception as e:
-            print(f"无法列出results目录: {e}")
+            logger.error(f"无法列出results目录: {e}")
         raise HTTPException(status_code=404, detail="文件不存在")
     
     # 验证是否为有效的视频文件
