@@ -248,7 +248,6 @@ class OpenPoseDetectionService:
             # 计算总处理时间
             total_time = time.time() - start_time
             result["processing_time"] = round(total_time, 3)
-
             logger.info(f"Total detection time: {total_time:.3f}s")
 
             # store in cache
