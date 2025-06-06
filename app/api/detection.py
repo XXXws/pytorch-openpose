@@ -16,11 +16,13 @@ import time
 from datetime import datetime
 from typing import Optional, Dict, Any
 import traceback
+import logging
 
 # 导入检测服务
 from app.core.detection_service import get_detection_service
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 class ImageDetectionRequest(BaseModel):
     """图像检测请求模型"""
@@ -46,16 +48,17 @@ async def detect_image_base64(request: ImageDetectionRequest):
     接收Base64编码的图像，返回检测结果
     """
     try:
-        print(f"Received Base64 image detection request: body={request.include_body}, hands={request.include_hands}")
-        
+        logger.info(
+            f"Received Base64 image detection request: body={request.include_body}, hands={request.include_hands}"
+        )
+
         # 获取检测服务
-        print("Getting detection service...")
+        logger.debug("Getting detection service...")
         try:
             detection_service = get_detection_service()
-            print("Detection service obtained successfully")
+            logger.debug("Detection service obtained successfully")
         except Exception as e:
-            print(f"Failed to get detection service: {e}")
-            traceback.print_exc()
+            logger.exception(f"Failed to get detection service: {e}")
             raise HTTPException(status_code=500, detail=f"Detection service initialization failed: {str(e)}")
         
         # 解码Base64图像
@@ -87,8 +90,7 @@ async def detect_image_base64(request: ImageDetectionRequest):
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Base64检测接口错误: {e}")
-        traceback.print_exc()
+        logger.exception(f"Base64检测接口错误: {e}")
         raise HTTPException(status_code=500, detail=f"服务器内部错误: {str(e)}")
 
 @router.post("/detect/upload")
@@ -103,7 +105,7 @@ async def detect_uploaded_image(
     接收上传的图像文件，返回检测结果
     """
     try:
-        print(f"Received file upload detection request: {file.filename}")
+        logger.info(f"Received file upload detection request: {file.filename}")
         
         # 验证文件类型
         if not file.content_type or not file.content_type.startswith('image/'):
@@ -121,7 +123,8 @@ async def detect_uploaded_image(
         
         # 保存上传的文件（可选）
         upload_filename = f"upload_{uuid.uuid4().hex[:8]}_{int(time.time())}.jpg"
-        upload_path = os.path.join("uploads", upload_filename)
+        from app.config import settings
+        upload_path = os.path.join(settings.upload_dir, upload_filename)
         cv2.imwrite(upload_path, image)
         
         # 获取检测服务并执行检测
