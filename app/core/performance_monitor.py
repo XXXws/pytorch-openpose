@@ -7,6 +7,7 @@
 
 import asyncio
 import time
+import logging
 from typing import Dict, Any, Optional
 from dataclasses import dataclass
 
@@ -16,7 +17,7 @@ try:
     PSUTIL_AVAILABLE = True
 except ImportError:
     PSUTIL_AVAILABLE = False
-    print("警告: psutil不可用，性能监控将使用模拟数据")
+    logging.getLogger(__name__).warning("psutil不可用，性能监控将使用模拟数据")
 
 @dataclass
 class PerformanceMetrics:
@@ -33,8 +34,9 @@ class PerformanceMetrics:
 
 class PerformanceMonitor:
     """性能监控器"""
-    
+
     def __init__(self):
+        self.logger = logging.getLogger(__name__)
         self.metrics_history = []
         self.max_history_size = 60  # 保留60个历史记录（约1分钟）
         self.monitoring = False
@@ -61,7 +63,7 @@ class PerformanceMonitor:
             
         self.monitoring = True
         self.monitor_task = asyncio.create_task(self._monitor_loop(interval))
-        print(f"性能监控已启动，监控间隔: {interval}秒")
+        self.logger.info(f"性能监控已启动，监控间隔: {interval}秒")
         
     def stop_monitoring(self):
         """停止性能监控"""
@@ -71,7 +73,7 @@ class PerformanceMonitor:
         self.monitoring = False
         if self.monitor_task:
             self.monitor_task.cancel()
-        print("性能监控已停止")
+        self.logger.info("性能监控已停止")
         
     async def _monitor_loop(self, interval: float):
         """监控循环"""
@@ -84,7 +86,7 @@ class PerformanceMonitor:
         except asyncio.CancelledError:
             pass
         except Exception as e:
-            print(f"性能监控错误: {e}")
+            self.logger.error(f"性能监控错误: {e}")
             
     def _collect_metrics(self) -> Optional[PerformanceMetrics]:
         """收集性能指标"""
@@ -167,7 +169,7 @@ class PerformanceMonitor:
             )
             
         except Exception as e:
-            print(f"收集性能指标失败: {e}")
+            self.logger.error(f"收集性能指标失败: {e}")
             return None
             
     def _add_metrics(self, metrics: PerformanceMetrics):

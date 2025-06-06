@@ -8,6 +8,7 @@ FFmpeg工具模块
 import json
 import os
 import subprocess
+import logging
 import ffmpeg
 from typing import NamedTuple, Dict, Any, Tuple
 from pathlib import Path
@@ -36,6 +37,7 @@ class FFmpegWriter:
             input_vcodec: 视频编解码器
         """
         self.output_file = output_file
+        self.logger = logging.getLogger(__name__)
         self.input_fps = input_fps
         self.input_framesize = input_framesize
         self.input_pix_fmt = input_pix_fmt
@@ -63,7 +65,7 @@ class FFmpegWriter:
             # 确保帧率合理
             if fps_value <= 0 or fps_value > 120:
                 fps_value = 30.0
-                print(f"警告: 帧率异常，使用默认值30fps")
+                self.logger.warning("帧率异常，使用默认值30fps")
             
             # 使用更兼容的编码器设置
             width, height = self.input_framesize[1], self.input_framesize[0]
@@ -74,7 +76,7 @@ class FFmpegWriter:
             if height % 2 != 0:
                 height += 1
             
-            print(f"FFmpeg参数: {width}x{height}, {fps_value}fps, {self.input_vcodec}")
+            self.logger.debug(f"FFmpeg参数: {width}x{height}, {fps_value}fps, {self.input_vcodec}")
             
             self.ff_proc = (
                 ffmpeg
@@ -167,16 +169,16 @@ class FFmpegWriter:
             
             if self.ff_proc.returncode != 0:
                 error_msg = stderr.decode() if stderr else "未知错误"
-                print(f"FFmpeg处理警告: {error_msg}")
+                self.logger.warning(f"FFmpeg处理警告: {error_msg}")
             
             self._closed = True
             
         except subprocess.TimeoutExpired:
-            print("FFmpeg进程超时，强制终止")
+            self.logger.error("FFmpeg进程超时，强制终止")
             self.ff_proc.kill()
             self._closed = True
         except Exception as e:
-            print(f"关闭FFmpeg进程时出错: {str(e)}")
+            self.logger.error(f"关闭FFmpeg进程时出错: {str(e)}")
             self._closed = True
 
 
