@@ -15,8 +15,6 @@ from dataclasses import dataclass
 from enum import Enum
 import logging
 
-# 配置日志
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class PipelineStage(Enum):

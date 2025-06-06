@@ -16,11 +16,14 @@ import time
 from datetime import datetime
 from typing import Optional, Dict, Any
 import traceback
+import logging
+import asyncio
 
 # 导入检测服务
 from app.core.detection_service import get_detection_service
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 class ImageDetectionRequest(BaseModel):
     """图像检测请求模型"""
@@ -46,16 +49,17 @@ async def detect_image_base64(request: ImageDetectionRequest):
     接收Base64编码的图像，返回检测结果
     """
     try:
-        print(f"Received Base64 image detection request: body={request.include_body}, hands={request.include_hands}")
-        
+        logger.info(
+            f"Received Base64 image detection request: body={request.include_body}, hands={request.include_hands}"
+        )
+
         # 获取检测服务
-        print("Getting detection service...")
+        logger.debug("Getting detection service...")
         try:
             detection_service = get_detection_service()
-            print("Detection service obtained successfully")
+            logger.debug("Detection service obtained successfully")
         except Exception as e:
-            print(f"Failed to get detection service: {e}")
-            traceback.print_exc()
+            logger.exception(f"Failed to get detection service: {e}")
             raise HTTPException(status_code=500, detail=f"Detection service initialization failed: {str(e)}")
         
         # 解码Base64图像
@@ -63,12 +67,15 @@ async def detect_image_base64(request: ImageDetectionRequest):
         if image is None:
             raise HTTPException(status_code=400, detail="Base64图像解码失败")
         
-        # 执行检测
-        result = detection_service.detect_pose(
-            image=image,
-            include_body=request.include_body,
-            include_hands=request.include_hands,
-            draw_result=request.draw_result
+        # 执行检测(在线程池中避免阻塞事件循环)
+        loop = asyncio.get_running_loop()
+        result = await loop.run_in_executor(
+            None,
+            detection_service.detect_pose,
+            image,
+            request.include_body,
+            request.include_hands,
+            request.draw_result,
         )
         
         if not result["success"]:
@@ -87,8 +94,7 @@ async def detect_image_base64(request: ImageDetectionRequest):
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Base64检测接口错误: {e}")
-        traceback.print_exc()
+        logger.exception(f"Base64检测接口错误: {e}")
         raise HTTPException(status_code=500, detail=f"服务器内部错误: {str(e)}")
 
 @router.post("/detect/upload")
@@ -103,7 +109,7 @@ async def detect_uploaded_image(
     接收上传的图像文件，返回检测结果
     """
     try:
-        print(f"Received file upload detection request: {file.filename}")
+        logger.info(f"Received file upload detection request: {file.filename}")
         
         # 验证文件类型
         if not file.content_type or not file.content_type.startswith('image/'):
@@ -121,16 +127,20 @@ async def detect_uploaded_image(
         
         # 保存上传的文件（可选）
         upload_filename = f"upload_{uuid.uuid4().hex[:8]}_{int(time.time())}.jpg"
-        upload_path = os.path.join("uploads", upload_filename)
+        from app.config import settings
+        upload_path = os.path.join(settings.upload_dir, upload_filename)
         cv2.imwrite(upload_path, image)
         
-        # 获取检测服务并执行检测
+        # 获取检测服务并执行检测(在线程池中运行)
         detection_service = get_detection_service()
-        result = detection_service.detect_pose(
-            image=image,
-            include_body=include_body,
-            include_hands=include_hands,
-            draw_result=draw_result
+        loop = asyncio.get_running_loop()
+        result = await loop.run_in_executor(
+            None,
+            detection_service.detect_pose,
+            image,
+            include_body,
+            include_hands,
+            draw_result,
         )
         
         if not result["success"]:
@@ -176,8 +186,7 @@ async def detect_uploaded_image(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"File upload detection API error: {e}")
-        traceback.print_exc()
+        logger.exception(f"File upload detection API error: {e}")
         raise HTTPException(status_code=500, detail=f"服务器内部错误: {str(e)}")
 
 @router.get("/detect/demo")
@@ -187,7 +196,7 @@ async def demo_detection():
     使用默认测试图像进行检测，复用demo.py的逻辑
     """
     try:
-        print("执行演示检测...")
+        logger.info("执行演示检测...")
         
         # 查找测试图像
         test_images = []
@@ -201,7 +210,7 @@ async def demo_detection():
         
         # 使用第一张图像
         test_image_path = test_images[0]
-        print(f"使用测试图像: {test_image_path}")
+        logger.info(f"使用测试图像: {test_image_path}")
         
         # 读取图像
         image = cv2.imread(test_image_path)
@@ -252,8 +261,7 @@ async def demo_detection():
     except HTTPException:
         raise
     except Exception as e:
-        print(f"演示检测接口错误: {e}")
-        traceback.print_exc()
+        logger.exception(f"演示检测接口错误: {e}")
         raise HTTPException(status_code=500, detail=f"服务器内部错误: {str(e)}")
 
 @router.get("/detect/status")
@@ -273,7 +281,7 @@ async def detection_status():
         }
         
     except Exception as e:
-        print(f"Status query error: {e}")
+        logger.error(f"Status query error: {e}")
         raise HTTPException(status_code=500, detail=f"Status query failed: {str(e)}")
 
 @router.get("/detect/diagnose")
@@ -356,8 +364,7 @@ async def diagnose_detection_service():
     except Exception as e:
         diagnosis["overall_status"] = "error"
         diagnosis["error"] = str(e)
-        print(f"Diagnosis error: {e}")
-        traceback.print_exc()
+        logger.exception(f"Diagnosis error: {e}")
         return diagnosis
 
 @router.post("/detect/batch")
@@ -372,7 +379,7 @@ async def batch_detection(
     接收多个图像文件，返回批量检测结果
     """
     try:
-        print(f"收到批量检测请求: {len(files)}个文件")
+        logger.info(f"收到批量检测请求: {len(files)}个文件")
         
         if len(files) > 10:  # 限制批量数量
             raise HTTPException(status_code=400, detail="批量检测最多支持10个文件")
@@ -382,7 +389,7 @@ async def batch_detection(
         
         for i, file in enumerate(files):
             try:
-                print(f"处理文件 {i+1}/{len(files)}: {file.filename}")
+                logger.info(f"处理文件 {i+1}/{len(files)}: {file.filename}")
                 
                 # 验证文件类型
                 if not file.content_type or not file.content_type.startswith('image/'):
@@ -419,7 +426,7 @@ async def batch_detection(
                 results.append(result)
                 
             except Exception as e:
-                print(f"处理文件 {file.filename} 时出错: {e}")
+                logger.error(f"处理文件 {file.filename} 时出错: {e}")
                 results.append({
                     "filename": file.filename,
                     "success": False,
@@ -443,6 +450,5 @@ async def batch_detection(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"批量检测接口错误: {e}")
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"服务器内部错误: {str(e)}") 
+        logger.exception(f"批量检测接口错误: {e}")
+        raise HTTPException(status_code=500, detail=f"服务器内部错误: {str(e)}")

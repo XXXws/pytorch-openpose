@@ -73,9 +73,11 @@ class VideoTaskManager:
     def __init__(self):
         self.ffmpeg_available = check_ffmpeg_available()
         self.ffprobe_available = check_ffprobe_available()
+        from app.config import settings
+
         self.tasks: Dict[str, VideoTask] = {}
-        self.upload_dir = Path("uploads")
-        self.result_dir = Path("results")
+        self.upload_dir = Path(settings.upload_dir)
+        self.result_dir = Path(settings.result_dir)
         self.upload_dir.mkdir(exist_ok=True)
         self.result_dir.mkdir(exist_ok=True)
         self.rebuild_tasks_from_files()

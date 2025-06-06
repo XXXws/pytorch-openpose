@@ -12,6 +12,7 @@ import json
 import time
 import base64
 import asyncio
+import logging
 from typing import Dict, Any
 import traceback
 
@@ -19,6 +20,7 @@ import traceback
 from app.core.detection_service import get_detection_service
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 class ConnectionManager:
     """WebSocket连接管理器"""
@@ -38,7 +40,7 @@ class ConnectionManager:
             "last_fps": 0,
             "fps_history": []
         }
-        print(f"WebSocket客户端 {client_id} 已连接")
+        logger.info(f"WebSocket客户端 {client_id} 已连接")
     
     def disconnect(self, client_id: str):
         """断开连接"""
@@ -46,7 +48,7 @@ class ConnectionManager:
             del self.active_connections[client_id]
         if client_id in self.connection_stats:
             del self.connection_stats[client_id]
-        print(f"WebSocket客户端 {client_id} 已断开")
+        logger.info(f"WebSocket客户端 {client_id} 已断开")
     
     async def send_message(self, client_id: str, message: dict):
         """发送消息"""
@@ -54,7 +56,7 @@ class ConnectionManager:
             try:
                 await self.active_connections[client_id].send_text(json.dumps(message))
             except Exception as e:
-                print(f"发送消息失败: {e}")
+                logger.error(f"发送消息失败: {e}")
                 self.disconnect(client_id)
     
     def update_stats(self, client_id: str, processing_time: float):
@@ -199,8 +201,7 @@ async def realtime_detection_endpoint(
                     # 发送失败，连接已断开
                     break
             except Exception as e:
-                print(f"处理WebSocket消息错误: {e}")
-                traceback.print_exc()
+                logger.exception(f"处理WebSocket消息错误: {e}")
                 try:
                     await manager.send_message(client_id, {
                         "type": "error",
@@ -213,8 +214,7 @@ async def realtime_detection_endpoint(
     except WebSocketDisconnect:
         pass
     except Exception as e:
-        print(f"WebSocket连接错误: {e}")
-        traceback.print_exc()
+        logger.exception(f"WebSocket连接错误: {e}")
     finally:
         manager.disconnect(client_id)
 
@@ -287,8 +287,7 @@ async def process_frame_message(
         await manager.send_message(client_id, response)
         
     except Exception as e:
-        print(f"处理帧错误: {e}")
-        traceback.print_exc()
+        logger.exception(f"处理帧错误: {e}")
         await manager.send_message(client_id, {
             "type": "error",
             "message": f"帧处理错误: {str(e)}"
