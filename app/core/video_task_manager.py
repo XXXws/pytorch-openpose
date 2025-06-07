@@ -17,6 +17,7 @@ from app.core.ffmpeg_utils import (
     get_video_info_ffprobe, FFmpegWriter,
     check_ffmpeg_available, check_ffprobe_available,
 )
+from app.config import settings
 
 
 class VideoTaskStatus:
@@ -161,13 +162,18 @@ class VideoTaskManager:
             writer = None
             use_ffmpeg = self.ffmpeg_available
             frame_count = 0
+            stride = max(int(settings.frame_stride), 1)
             while cap.isOpened():
                 ret, frame = cap.read()
                 if not ret or frame is None:
                     break
                 if frame.size == 0:
                     continue
-                posed = video_service.process_frame(frame, include_body, include_hands)
+                if frame_count % stride == 0:
+                    posed = video_service.process_frame(frame, include_body, include_hands)
+                    last_posed = posed
+                else:
+                    posed = last_posed if 'last_posed' in locals() else frame
                 if posed is None or posed.size == 0:
                     posed = frame
                 if writer is None:
@@ -217,8 +223,6 @@ class VideoTaskManager:
                 task.processed_frames = frame_count
                 if task.total_frames > 0:
                     task.progress = min(frame_count / task.total_frames * 100, 100.0)
-                if frame_count % 5 == 0:
-                    time.sleep(0)
             cap.release()
             if writer is not None:
                 if use_ffmpeg and hasattr(writer, "close"):
