@@ -77,8 +77,8 @@ class Body(object):
                         Mconv7_stage6_L1, Mconv7_stage6_L2 = self.model(data)
                 else:
                     Mconv7_stage6_L1, Mconv7_stage6_L2 = self.model(data)
-            Mconv7_stage6_L1 = Mconv7_stage6_L1.cpu().numpy()
-            Mconv7_stage6_L2 = Mconv7_stage6_L2.cpu().numpy()
+            Mconv7_stage6_L1 = Mconv7_stage6_L1.float().cpu().numpy()
+            Mconv7_stage6_L2 = Mconv7_stage6_L2.float().cpu().numpy()
             
             # 清理GPU缓存以释放内存
             if torch.cuda.is_available():

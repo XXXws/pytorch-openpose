@@ -74,9 +74,9 @@ class Hand(object):
             with torch.no_grad():
                 if self.device.type == "cuda" and settings.enable_mixed_precision:
                     with torch.amp.autocast("cuda"):
-                        output = self.model(data).cpu().numpy()
+                        output = self.model(data).float().cpu().numpy()
                 else:
-                    output = self.model(data).cpu().numpy()
+                    output = self.model(data).float().cpu().numpy()
                 # output = self.model(data).numpy()q
 
             # extract outputs, resize, and remove padding
