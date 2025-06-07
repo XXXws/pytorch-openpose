@@ -144,6 +144,10 @@ class VideoTaskManager:
         return task_id
 
     async def _process_video_async(self, task: VideoTask):
+        """Run heavy video processing in a background thread to avoid blocking the event loop."""
+        await asyncio.to_thread(self._process_video_sync, task)
+
+    def _process_video_sync(self, task: VideoTask):
         try:
             task.status = VideoTaskStatus.PROCESSING
             task.start_time = time.time()
@@ -214,7 +218,7 @@ class VideoTaskManager:
                 if task.total_frames > 0:
                     task.progress = min(frame_count / task.total_frames * 100, 100.0)
                 if frame_count % 5 == 0:
-                    await asyncio.sleep(0)
+                    time.sleep(0)
             cap.release()
             if writer is not None:
                 if use_ffmpeg and hasattr(writer, "close"):
