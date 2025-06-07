@@ -189,6 +189,7 @@ npm run build
 - **异步处理**: 6阶段流水线架构
 - **智能策略**: 自适应丢帧和压缩
 - **混合精度推理**: 设置 `OPENPOSE_ENABLE_MIXED_PRECISION=true` 可在 GPU 上启用半精度推理
+- **TorchScript优化**: 设置 `OPENPOSE_ENABLE_TORCHSCRIPT=true` 将模型转换为 TorchScript 加快推理
 - **帧间隔控制**: 通过 `OPENPOSE_FRAME_STRIDE` 调整检测间隔以提升处理速度
 
 ## 📈 性能指标

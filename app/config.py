@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     image_dir: str = "images"
     log_level: str = "INFO"
     enable_mixed_precision: bool = False
+    enable_torchscript: bool = False
     frame_stride: int = 1
 
     class Config:

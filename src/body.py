@@ -31,6 +31,14 @@ class Body(object):
         
         self.model.load_state_dict(model_dict)
         self.model.eval()
+
+        if settings.enable_torchscript:
+            example = torch.zeros(1, 3, 368, 368, device=self.device)
+            if self.device.type == "cuda" and settings.enable_mixed_precision:
+                example = example.half()
+            with torch.no_grad():
+                traced = torch.jit.trace(self.model, example)
+            self.model = torch.jit.optimize_for_inference(traced)
         
         # GPU内存管理优化
         if torch.cuda.is_available():
