@@ -85,6 +85,9 @@ python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
 ```
 
+> **注意**: 运行时请勿在模块名后追加`.py`，例如`python -m app.main.py`会导致
+> `ModuleNotFoundError`错误。正确命令应为`python -m uvicorn app.main:app`。
+
 **前端服务**
 ```bash
 cd frontend
