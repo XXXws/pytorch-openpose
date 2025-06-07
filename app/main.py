@@ -148,13 +148,13 @@ async def global_exception_handler(request, exc):
 
 if __name__ == "__main__":
     logger.info("启动PyTorch OpenPose Web服务")
-    logger.info("访问地址: http://localhost:8001")
-    logger.info("API文档: http://localhost:8001/docs")
-    
+    logger.info("访问地址: http://localhost:8000")
+    logger.info("API文档: http://localhost:8000/docs")
+
     uvicorn.run(
-        "app.main:app", 
-        host="0.0.0.0", 
-        port=8001,  # 修复：与BAT文件保持一致使用8001端口
+        "app.main:app",
+        host="0.0.0.0",
+        port=8000,
         reload=True,
         log_level="info"
-    ) 
+    )
