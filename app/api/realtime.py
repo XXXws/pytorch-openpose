@@ -318,7 +318,7 @@ async def demo_realtime():
     
     return {
         "message": "实时检测WebSocket演示",
-        "websocket_url": "ws://localhost:8001/api/ws/realtime/{client_id}",
+        "websocket_url": "ws://localhost:8000/api/ws/realtime/{client_id}",
         "parameters": {
             "client_id": "客户端唯一标识",
             "include_body": "是否检测身体姿态（默认true）",
@@ -339,5 +339,5 @@ async def demo_realtime():
                 "type": "stats_request"
             }
         },
-        "example_url": "ws://localhost:8001/api/ws/realtime/demo_client?include_body=true&include_hands=true&target_fps=15"
-    } 
+        "example_url": "ws://localhost:8000/api/ws/realtime/demo_client?include_body=true&include_hands=true&target_fps=15"
+    }
