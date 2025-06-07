@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     result_dir: str = "results"
     image_dir: str = "images"
     log_level: str = "INFO"
+    enable_mixed_precision: bool = False
 
     class Config:
         env_file = ".env"
