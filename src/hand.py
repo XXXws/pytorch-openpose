@@ -11,6 +11,7 @@ from skimage.measure import label
 
 from src.model import handpose_model
 from src import util
+from app.config import settings
 
 class Hand(object):
     def __init__(self, model_path):
@@ -20,6 +21,8 @@ class Hand(object):
         
         self.model = handpose_model()
         self.model = self.model.to(self.device)
+        if self.device.type == "cuda" and settings.enable_mixed_precision:
+            self.model.half()
         
         # 根据设备加载模型权重
         if torch.cuda.is_available():
@@ -54,9 +57,15 @@ class Hand(object):
 
             data = torch.from_numpy(im).float()
             data = data.to(self.device)
+            if self.device.type == "cuda" and settings.enable_mixed_precision:
+                data = data.half()
             # data = data.permute([2, 0, 1]).unsqueeze(0).float()
             with torch.no_grad():
-                output = self.model(data).cpu().numpy()
+                if self.device.type == "cuda" and settings.enable_mixed_precision:
+                    with torch.cuda.amp.autocast():
+                        output = self.model(data).cpu().numpy()
+                else:
+                    output = self.model(data).cpu().numpy()
                 # output = self.model(data).numpy()q
 
             # extract outputs, resize, and remove padding

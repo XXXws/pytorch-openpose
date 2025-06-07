@@ -17,7 +17,7 @@ const retryConfig = {
 
 // API客户端配置
 const api = axios.create({
-  baseURL: 'http://localhost:8001',
+  baseURL: 'http://localhost:8000',
   timeout: 45000, // 增加默认超时到45秒
   headers: {
     'Content-Type': 'application/json'
@@ -158,10 +158,10 @@ export const apiService = {
   }),
   
   // 获取视频结果URL（用于下载）
-  getVideoResultUrl: (taskId) => `http://localhost:8001/api/video/task/${taskId}/result`,
+  getVideoResultUrl: (taskId) => `http://localhost:8000/api/video/task/${taskId}/result`,
   
   // 获取视频播放URL（用于在线播放）
-  getVideoPlayUrl: (taskId) => `http://localhost:8001/api/video/task/${taskId}/play`,
+  getVideoPlayUrl: (taskId) => `http://localhost:8000/api/video/task/${taskId}/play`,
   
   // 获取任务详细信息
   getVideoTaskInfo: (taskId) => api.get(`/api/video/task/${taskId}/info`, {

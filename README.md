@@ -85,6 +85,9 @@ python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
 ```
 
+> **注意**: 运行时请勿在模块名后追加`.py`，例如`python -m app.main.py`会导致
+> `ModuleNotFoundError`错误。正确命令应为`python -m uvicorn app.main:app`。
+
 **前端服务**
 ```bash
 cd frontend
@@ -185,6 +188,7 @@ npm run build
 - **缓冲机制**: 多级帧缓冲队列
 - **异步处理**: 6阶段流水线架构
 - **智能策略**: 自适应丢帧和压缩
+- **混合精度推理**: 设置 `OPENPOSE_ENABLE_MIXED_PRECISION=true` 可在 GPU 上启用半精度推理
 
 ## 📈 性能指标
 

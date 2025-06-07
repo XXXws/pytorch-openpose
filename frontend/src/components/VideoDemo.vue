@@ -370,7 +370,7 @@ export default {
             
             if (filename && filename.endsWith('.mp4')) {
               // 使用直接文件访问端点
-              const backupUrl = `http://localhost:8001/api/video/file/${filename}`
+              const backupUrl = `http://localhost:8000/api/video/file/${filename}`
               
               // 验证备用URL是否可访问
               console.log('尝试备用URL:', backupUrl)
@@ -400,7 +400,7 @@ export default {
         // 如果备用方式也失败，尝试扫描可用的视频文件
         try {
           console.log('尝试扫描可用视频文件...')
-          const tasksResponse = await fetch('http://localhost:8001/api/video/tasks')
+          const tasksResponse = await fetch('http://localhost:8000/api/video/tasks')
           if (tasksResponse.ok) {
             const tasksData = await tasksResponse.json()
             
@@ -412,7 +412,7 @@ export default {
               if (latestTask.output_file) {
                 const filename = latestTask.output_file.split('/').pop() || latestTask.output_file.split('\\').pop()
                 if (filename && filename.endsWith('.mp4')) {
-                  const scanUrl = `http://localhost:8001/api/video/file/${filename}`
+                  const scanUrl = `http://localhost:8000/api/video/file/${filename}`
                   const scanResponse = await fetch(scanUrl, { method: 'HEAD' })
                   if (scanResponse.ok) {
                     console.log('找到可用视频文件，切换视频源...')

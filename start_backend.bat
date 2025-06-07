@@ -15,12 +15,12 @@ cd /d "%~dp0"
 
 REM 启动后端服务
 echo 正在启动后端服务...
-echo 访问地址: http://localhost:8001
-echo API文档: http://localhost:8001/docs
+echo 访问地址: http://localhost:8000
+echo API文档: http://localhost:8000/docs
 echo.
 echo 按 Ctrl+C 停止服务
 echo.
 
-python -m app.main
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
 pause

@@ -223,7 +223,7 @@ export const createRealtimeWebSocket = (clientId, options = {}) => {
     includeBody = true,
     includeHands = true,
     targetFps = 15,
-    baseUrl = 'ws://localhost:8001'
+    baseUrl = 'ws://localhost:8000'
   } = options
   
   const url = `${baseUrl}/api/ws/realtime/${clientId}?include_body=${includeBody}&include_hands=${includeHands}&target_fps=${targetFps}`

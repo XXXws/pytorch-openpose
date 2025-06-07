@@ -10,6 +10,7 @@ from torchvision import transforms
 
 from src import util
 from src.model import bodypose_model
+from app.config import settings
 
 class Body(object):
     def __init__(self, model_path):
@@ -19,6 +20,8 @@ class Body(object):
         
         self.model = bodypose_model()
         self.model = self.model.to(self.device)
+        if self.device.type == "cuda" and settings.enable_mixed_precision:
+            self.model.half()
         
         # 根据设备加载模型权重
         if torch.cuda.is_available():
@@ -54,9 +57,15 @@ class Body(object):
 
             data = torch.from_numpy(im).float()
             data = data.to(self.device)
+            if self.device.type == "cuda" and settings.enable_mixed_precision:
+                data = data.half()
             # data = data.permute([2, 0, 1]).unsqueeze(0).float()
             with torch.no_grad():
-                Mconv7_stage6_L1, Mconv7_stage6_L2 = self.model(data)
+                if self.device.type == "cuda" and settings.enable_mixed_precision:
+                    with torch.cuda.amp.autocast():
+                        Mconv7_stage6_L1, Mconv7_stage6_L2 = self.model(data)
+                else:
+                    Mconv7_stage6_L1, Mconv7_stage6_L2 = self.model(data)
             Mconv7_stage6_L1 = Mconv7_stage6_L1.cpu().numpy()
             Mconv7_stage6_L2 = Mconv7_stage6_L2.cpu().numpy()
             
@@ -78,8 +87,8 @@ class Body(object):
             paf = paf[:imageToTest_padded.shape[0] - pad[2], :imageToTest_padded.shape[1] - pad[3], :]
             paf = cv2.resize(paf, (oriImg.shape[1], oriImg.shape[0]), interpolation=cv2.INTER_CUBIC)
 
-            heatmap_avg += heatmap_avg + heatmap / len(multiplier)
-            paf_avg += + paf / len(multiplier)
+            heatmap_avg += heatmap / len(multiplier)
+            paf_avg += paf / len(multiplier)
 
         all_peaks = []
         peak_counter = 0
