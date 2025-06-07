@@ -39,7 +39,10 @@ class Hand(object):
                 example = example.half()
             with torch.no_grad():
                 traced = torch.jit.trace(self.model, example)
-            self.model = torch.jit.optimize_for_inference(traced)
+            self.model = torch.jit.optimize_for_inference(traced).to(self.device)
+            if self.device.type == "cuda" and settings.enable_mixed_precision:
+                self.model.half()
+            self.model.eval()
         
         # GPU内存管理优化
         if torch.cuda.is_available():
@@ -70,7 +73,7 @@ class Hand(object):
             # data = data.permute([2, 0, 1]).unsqueeze(0).float()
             with torch.no_grad():
                 if self.device.type == "cuda" and settings.enable_mixed_precision:
-                    with torch.cuda.amp.autocast():
+                    with torch.amp.autocast("cuda"):
                         output = self.model(data).cpu().numpy()
                 else:
                     output = self.model(data).cpu().numpy()
