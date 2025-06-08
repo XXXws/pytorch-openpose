@@ -2,11 +2,10 @@ import cv2
 import numpy as np
 import math
 import time
-from scipy.ndimage.filters import gaussian_filter
 import matplotlib.pyplot as plt
 import matplotlib
 import torch
-from torchvision import transforms
+import torch.nn.functional as F
 
 from src import util
 from src.model import bodypose_model
@@ -14,20 +13,30 @@ from app.config import settings
 
 class Body(object):
     def __init__(self, model_path):
-        # 检测GPU是否可用并设置设备
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        # Benchmark CPU vs GPU to select the faster device
+        temp_model = bodypose_model().eval()
+        dummy = torch.zeros(1, 3, 368, 368)
+        with torch.no_grad():
+            start = time.time()
+            temp_model(dummy)
+            cpu_time = time.time() - start
+        gpu_time = float('inf')
+        if torch.cuda.is_available():
+            temp_model = temp_model.to('cuda')
+            with torch.no_grad():
+                start = time.time()
+                temp_model(dummy.to('cuda'))
+                torch.cuda.synchronize()
+                gpu_time = time.time() - start
+        self.device = torch.device('cuda' if torch.cuda.is_available() and gpu_time < cpu_time else 'cpu')
         print(f"Using device for body pose detection: {self.device}")
-        
-        self.model = bodypose_model()
-        self.model = self.model.to(self.device)
+
+        # Initialize model on the selected device
+        self.model = bodypose_model().to(self.device)
         if self.device.type == "cuda" and settings.enable_mixed_precision:
             self.model.half()
-        
-        # 根据设备加载模型权重
-        if torch.cuda.is_available():
-            model_dict = util.transfer(self.model, torch.load(model_path))
-        else:
-            model_dict = util.transfer(self.model, torch.load(model_path, map_location='cpu'))
+
+        model_dict = util.transfer(self.model, torch.load(model_path, map_location=self.device))
         
         self.model.load_state_dict(model_dict)
         self.model.eval()
@@ -104,28 +113,20 @@ class Body(object):
         all_peaks = []
         peak_counter = 0
 
+        heatmap_t = torch.from_numpy(heatmap_avg.transpose(2, 0, 1)).to(self.device)
+        smoothed = F.gaussian_blur(heatmap_t.unsqueeze(0), (7, 7), sigma=3)[0]
+        max_map = F.max_pool2d(smoothed.unsqueeze(0), 3, stride=1, padding=1)[0]
+        peaks_binary = (smoothed == max_map) & (smoothed > thre1)
+
         for part in range(18):
-            map_ori = heatmap_avg[:, :, part]
-            one_heatmap = gaussian_filter(map_ori, sigma=3)
-
-            map_left = np.zeros(one_heatmap.shape)
-            map_left[1:, :] = one_heatmap[:-1, :]
-            map_right = np.zeros(one_heatmap.shape)
-            map_right[:-1, :] = one_heatmap[1:, :]
-            map_up = np.zeros(one_heatmap.shape)
-            map_up[:, 1:] = one_heatmap[:, :-1]
-            map_down = np.zeros(one_heatmap.shape)
-            map_down[:, :-1] = one_heatmap[:, 1:]
-
-            peaks_binary = np.logical_and.reduce(
-                (one_heatmap >= map_left, one_heatmap >= map_right, one_heatmap >= map_up, one_heatmap >= map_down, one_heatmap > thre1))
-            peaks = list(zip(np.nonzero(peaks_binary)[1], np.nonzero(peaks_binary)[0]))  # note reverse
-            peaks_with_score = [x + (map_ori[x[1], x[0]],) for x in peaks]
-            peak_id = range(peak_counter, peak_counter + len(peaks))
-            peaks_with_score_and_id = [peaks_with_score[i] + (peak_id[i],) for i in range(len(peak_id))]
-
-            all_peaks.append(peaks_with_score_and_id)
-            peak_counter += len(peaks)
+            coords = torch.nonzero(peaks_binary[part], as_tuple=False)
+            scores = heatmap_t[part, coords[:, 0], coords[:, 1]] if coords.numel() > 0 else torch.tensor([])
+            part_peaks = []
+            for idx in range(coords.shape[0]):
+                y, x = coords[idx]
+                part_peaks.append((int(x), int(y), float(scores[idx]), peak_counter + idx))
+            all_peaks.append(part_peaks)
+            peak_counter += coords.shape[0]
 
         # find connection in the specified sequence, center 29 is in the position 15
         limbSeq = [[2, 3], [2, 6], [3, 4], [4, 5], [6, 7], [7, 8], [2, 9], [9, 10], \
@@ -151,23 +152,20 @@ class Body(object):
                 connection_candidate = []
                 for i in range(nA):
                     for j in range(nB):
-                        vec = np.subtract(candB[j][:2], candA[i][:2])
-                        norm = math.sqrt(vec[0] * vec[0] + vec[1] * vec[1])
+                        vec = np.subtract(candB[j][:2], candA[i][:2]).astype(np.float32)
+                        norm = math.hypot(vec[0], vec[1])
                         norm = max(0.001, norm)
-                        vec = np.divide(vec, norm)
+                        vec_unit = vec / norm
 
-                        startend = list(zip(np.linspace(candA[i][0], candB[j][0], num=mid_num), \
-                                            np.linspace(candA[i][1], candB[j][1], num=mid_num)))
-
-                        vec_x = np.array([score_mid[int(round(startend[I][1])), int(round(startend[I][0])), 0] \
-                                          for I in range(len(startend))])
-                        vec_y = np.array([score_mid[int(round(startend[I][1])), int(round(startend[I][0])), 1] \
-                                          for I in range(len(startend))])
-
-                        score_midpts = np.multiply(vec_x, vec[0]) + np.multiply(vec_y, vec[1])
-                        score_with_dist_prior = sum(score_midpts) / len(score_midpts) + min(
-                            0.5 * oriImg.shape[0] / norm - 1, 0)
-                        criterion1 = len(np.nonzero(score_midpts > thre2)[0]) > 0.8 * len(score_midpts)
+                        xs = torch.linspace(candA[i][0], candB[j][0], mid_num, device=self.device)
+                        ys = torch.linspace(candA[i][1], candB[j][1], mid_num, device=self.device)
+                        xs_int = xs.round().long()
+                        ys_int = ys.round().long()
+                        paf_x = torch.tensor(score_mid[:, :, 0], device=self.device)[ys_int, xs_int]
+                        paf_y = torch.tensor(score_mid[:, :, 1], device=self.device)[ys_int, xs_int]
+                        score_midpts = paf_x * vec_unit[0] + paf_y * vec_unit[1]
+                        score_with_dist_prior = score_midpts.mean().item() + min(0.5 * oriImg.shape[0] / norm - 1, 0)
+                        criterion1 = (score_midpts > thre2).sum().item() > 0.8 * mid_num
                         criterion2 = score_with_dist_prior > 0
                         if criterion1 and criterion2:
                             connection_candidate.append(

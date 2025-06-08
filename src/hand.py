@@ -3,10 +3,10 @@ import json
 import numpy as np
 import math
 import time
-from scipy.ndimage.filters import gaussian_filter
 import matplotlib.pyplot as plt
 import matplotlib
 import torch
+import torch.nn.functional as F
 from skimage.measure import label
 
 from src.model import handpose_model
@@ -15,20 +15,29 @@ from app.config import settings
 
 class Hand(object):
     def __init__(self, model_path):
-        # 检测GPU是否可用并设置设备
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        # Benchmark CPU vs GPU and select faster device
+        temp_model = handpose_model().eval()
+        dummy = torch.zeros(1, 3, 368, 368)
+        with torch.no_grad():
+            start = time.time()
+            temp_model(dummy)
+            cpu_time = time.time() - start
+        gpu_time = float('inf')
+        if torch.cuda.is_available():
+            temp_model = temp_model.to('cuda')
+            with torch.no_grad():
+                start = time.time()
+                temp_model(dummy.to('cuda'))
+                torch.cuda.synchronize()
+                gpu_time = time.time() - start
+        self.device = torch.device('cuda' if torch.cuda.is_available() and gpu_time < cpu_time else 'cpu')
         print(f"Using device for hand pose detection: {self.device}")
-        
-        self.model = handpose_model()
-        self.model = self.model.to(self.device)
+
+        self.model = handpose_model().to(self.device)
         if self.device.type == "cuda" and settings.enable_mixed_precision:
             self.model.half()
-        
-        # 根据设备加载模型权重
-        if torch.cuda.is_available():
-            model_dict = util.transfer(self.model, torch.load(model_path))
-        else:
-            model_dict = util.transfer(self.model, torch.load(model_path, map_location='cpu'))
+
+        model_dict = util.transfer(self.model, torch.load(model_path, map_location=self.device))
         
         self.model.load_state_dict(model_dict)
         self.model.eval()
@@ -92,21 +101,17 @@ class Hand(object):
                 del data
                 torch.cuda.empty_cache()
 
+        heatmap_t = torch.from_numpy(heatmap_avg.transpose(2, 0, 1)).to(self.device)
+        smoothed = F.gaussian_blur(heatmap_t.unsqueeze(0), (7, 7), sigma=3)[0]
         all_peaks = []
         for part in range(21):
-            map_ori = heatmap_avg[:, :, part]
-            one_heatmap = gaussian_filter(map_ori, sigma=3)
-            binary = np.ascontiguousarray(one_heatmap > thre, dtype=np.uint8)
-            # 全部小于阈值
-            if np.sum(binary) == 0:
+            part_map = smoothed[part]
+            max_val = part_map.max()
+            if max_val <= thre:
                 all_peaks.append([0, 0])
                 continue
-            label_img, label_numbers = label(binary, return_num=True, connectivity=binary.ndim)
-            max_index = np.argmax([np.sum(map_ori[label_img == i]) for i in range(1, label_numbers + 1)]) + 1
-            label_img[label_img != max_index] = 0
-            map_ori[label_img == 0] = 0
-
-            y, x = util.npmax(map_ori)
+            yx = torch.nonzero(part_map == max_val, as_tuple=False)[0]
+            y, x = int(yx[0]), int(yx[1])
             all_peaks.append([x, y])
         return np.array(all_peaks)
 
